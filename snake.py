@@ -3,13 +3,15 @@
 import pygame
 import time
 import random
+import neat
+import os
 
 from PIL import Image
 
  
 class Game():
-    def __init__(self):
-        self.run_game()
+    def __init__(self,genome,config):
+        self.run_game(genome,config)
     # displaying Score function
     def show_score(self,choice, color, font, size):
     
@@ -27,49 +29,19 @@ class Game():
         # displaying text
         self.game_window.blit(score_surface, score_rect)
     
-    # game over function
-    def game_over(self):
-    
-        # creating font object my_font
-        my_font = pygame.font.SysFont('times new roman', 50)
-        
-        # creating a text surface on which text
-        # will be drawn
-        game_over_surface = my_font.render(
-            'Your Score is : ' + str(self.score), True, self.red)
-        
-        # create a rectangular object for the text
-        # surface object
-        game_over_rect = game_over_surface.get_rect()
-        
-        # setting position of the text
-        game_over_rect.midtop = (self.window_x/2, self.window_y/4)
-        
-        # blit will draw the text on screen
-        self.game_window.blit(game_over_surface, game_over_rect)
-        pygame.display.flip()
-        
-        # after 2 seconds we will quit the program
-        time.sleep(2)
-        
-        # deactivating pygame library
-        pygame.quit()
-        
-        # quit the program
-        quit()
     
 
-    def run_game(self):
+    def run_game(self,genome,config):
         snake_speed = 15
     
         # Window size
-        self.window_x = 720
-        self.window_y = 480
+        self.window_x = 420
+        self.window_y = 380
         
         # defining colors
         black = pygame.Color(0, 0, 0)
         white = pygame.Color(255, 255, 255)
-        self.red = pygame.Color(255, 0, 0)
+        red = pygame.Color(255, 0, 0)
         green = pygame.Color(0, 255, 0)
         blue = pygame.Color(0, 0, 255)
         
@@ -77,7 +49,7 @@ class Game():
         pygame.init()
         
         # Initialise game window
-        pygame.display.set_caption('GeeksforGeeks Snakes')
+        pygame.display.set_caption('Snake AI')
         self.game_window = pygame.display.set_mode((self.window_x, self.window_y))
         
         # FPS (frames per second) controller
@@ -105,6 +77,8 @@ class Game():
         
         # initial score
         self.score = 0
+
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
         while True:
             
             # handling key events
@@ -122,6 +96,7 @@ class Game():
             # If two keys pressed simultaneously
             # we don't want snake to move into two
             # directions simultaneously
+            """
             if change_to == 'UP' and direction != 'DOWN':
                 direction = 'UP'
             if change_to == 'DOWN' and direction != 'UP':
@@ -130,12 +105,31 @@ class Game():
                 direction = 'LEFT'
             if change_to == 'RIGHT' and direction != 'LEFT':
                 direction = 'RIGHT'
+            """
 
             pygame.image.save(self.game_window,"screenshot.jpg")
             img = Image.open("screenshot.jpg")
 
             img = img.convert("L")
-            img.save("mono.jpg")
+
+            pixels = []
+
+            for y in range(self.window_y):
+                for x in range(self.window_x):
+                    pixels.append(img.getpixel((x,y)))
+            
+            output = net.activate(pixels)
+
+            decision = output.index(max(output))
+
+            if decision == 0 and direction != 'DOWN':
+                direction = 'UP'
+            if decision == 1 and direction != 'UP':
+                direction = 'DOWN'
+            if decision == 2 and direction != 'RIGHT':
+                direction = 'LEFT'
+            if decision == 3 and direction != 'LEFT':
+                direction = 'RIGHT'
         
             # Moving the snake
             if direction == 'UP':
@@ -167,19 +161,25 @@ class Game():
             for pos in snake_body:
                 pygame.draw.rect(self.game_window, green,
                                 pygame.Rect(pos[0], pos[1], 10, 10))
-            pygame.draw.rect(self.game_window, self.red, pygame.Rect(
+            pygame.draw.rect(self.game_window, red, pygame.Rect(
                 fruit_position[0], fruit_position[1], 10, 10))
         
             # Game Over conditions
             if snake_position[0] < 0 or snake_position[0] > self.window_x-10:
-                self.game_over()
+                genome.fitness = self.score
+                pygame.quit()
+                break
             if snake_position[1] < 0 or snake_position[1] > self.window_y-10:
-                self.game_over()
+                genome.fitness = self.score
+                pygame.quit()
+                break
         
             # Touching the snake body
             for block in snake_body[1:]:
                 if snake_position[0] == block[0] and snake_position[1] == block[1]:
-                    self.game_over()
+                    genome.fitness = self.score
+                    pygame.quit()
+                    break
         
             # displaying score continuously
             self.show_score(1, white, 'times new roman', 20)
@@ -190,6 +190,30 @@ class Game():
             # Frame Per Second /Refresh Rate
             fps.tick(snake_speed)
 
+def eval_genomes(genomes,config):
+    for genome_id, genome in genomes:
+        game = Game(genome,config)
+
+def run_ai(config_file):
+    # Load configuration.
+    config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                         neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                         config_file)
+
+    # Create the population, which is the top-level object for a NEAT run.
+    p = neat.Population(config)
+
+    # Add a stdout reporter to show progress in the terminal.
+    p.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    p.add_reporter(stats)
+    p.add_reporter(neat.Checkpointer(5))
+
+    # Run for up to 300 generations.
+    winner = p.run(eval_genomes, 300)
+
 
 if __name__ == "__main__":
-    game = Game()
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, 'config')
+    run_ai(config_path)
