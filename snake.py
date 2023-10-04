@@ -1,7 +1,6 @@
 #Snake game by https://www.geeksforgeeks.org/snake-game-in-python-using-pygame-module/
 
 import pygame
-import time
 import random
 import neat
 import os
@@ -10,8 +9,7 @@ from PIL import Image
 
  
 class Game():
-    def __init__(self,genome,config):
-        self.run_game(genome,config)
+
     # displaying Score function
     def show_score(self,choice, color, font, size):
     
@@ -31,12 +29,12 @@ class Game():
     
     
 
-    def run_game(self,genome,config):
+    def run_game(self,genome,config,delay):
         snake_speed = 15
     
         # Window size
-        self.window_x = 420
-        self.window_y = 380
+        self.window_x = 720
+        self.window_y = 480
         
         # defining colors
         black = pygame.Color(0, 0, 0)
@@ -78,12 +76,14 @@ class Game():
         # initial score
         self.score = 0
 
+
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         while True:
             
             # handling key events
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
+                    """
                     if event.key == pygame.K_UP:
                         change_to = 'UP'
                     if event.key == pygame.K_DOWN:
@@ -92,6 +92,12 @@ class Game():
                         change_to = 'LEFT'
                     if event.key == pygame.K_RIGHT:
                         change_to = 'RIGHT'
+                    """
+                    if event.key == pygame.K_h:
+                        if delay:
+                            delay = False
+                        else:
+                            delay = True
         
             # If two keys pressed simultaneously
             # we don't want snake to move into two
@@ -109,13 +115,13 @@ class Game():
 
             pygame.image.save(self.game_window,"screenshot.jpg")
             img = Image.open("screenshot.jpg")
-
+            img.resize((img.width // 4, img.height // 4))
             img = img.convert("L")
 
             pixels = []
 
-            for y in range(self.window_y):
-                for x in range(self.window_x):
+            for y in range(self.window_y//4):
+                for x in range(self.window_x//4):
                     pixels.append(img.getpixel((x,y)))
             
             output = net.activate(pixels)
@@ -167,19 +173,16 @@ class Game():
             # Game Over conditions
             if snake_position[0] < 0 or snake_position[0] > self.window_x-10:
                 genome.fitness = self.score
-                pygame.quit()
-                break
+                return delay
             if snake_position[1] < 0 or snake_position[1] > self.window_y-10:
                 genome.fitness = self.score
-                pygame.quit()
-                break
+                return delay
         
             # Touching the snake body
             for block in snake_body[1:]:
                 if snake_position[0] == block[0] and snake_position[1] == block[1]:
                     genome.fitness = self.score
-                    pygame.quit()
-                    break
+                    return delay
         
             # displaying score continuously
             self.show_score(1, white, 'times new roman', 20)
@@ -188,11 +191,14 @@ class Game():
             pygame.display.update()
         
             # Frame Per Second /Refresh Rate
-            fps.tick(snake_speed)
+            if delay:
+                fps.tick(snake_speed)
 
 def eval_genomes(genomes,config):
+    delay = False
     for genome_id, genome in genomes:
-        game = Game(genome,config)
+        game = Game()
+        delay = game.run_game(genome,config,delay)
 
 def run_ai(config_file):
     # Load configuration.
