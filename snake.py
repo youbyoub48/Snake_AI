@@ -42,6 +42,7 @@ class Game():
         red = pygame.Color(255, 0, 0)
         green = pygame.Color(0, 255, 0)
         blue = pygame.Color(0, 0, 255)
+        yellow = pygame.Color(255,255,0)
         
         # Initialising pygame
         pygame.init()
@@ -115,7 +116,7 @@ class Game():
 
             pygame.image.save(self.game_window,"screenshot.jpg")
             img = Image.open("screenshot.jpg")
-            img.resize((img.width // 4, img.height // 4))
+            img = img.resize((img.width // 4, img.height // 4))
             img = img.convert("L")
 
             pixels = []
@@ -164,8 +165,13 @@ class Game():
             fruit_spawn = True
             self.game_window.fill(blue)
             
-            for pos in snake_body:
-                pygame.draw.rect(self.game_window, green,
+            for i,pos in enumerate(snake_body):
+                if i == 0:
+                    snake_color = yellow
+                else:
+                    snake_color = green
+
+                pygame.draw.rect(self.game_window, snake_color,
                                 pygame.Rect(pos[0], pos[1], 10, 10))
             pygame.draw.rect(self.game_window, red, pygame.Rect(
                 fruit_position[0], fruit_position[1], 10, 10))
